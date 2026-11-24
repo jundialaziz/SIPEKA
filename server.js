@@ -323,7 +323,7 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`\n===============================================================`);
-    console.log(`🚀 IOT FIRE EARLY WARNING SYSTEM - LIVE SERVER RUNNING`);
+    console.log(`🚀 SI PEKA - IOT FIRE EARLY WARNING SYSTEM (LIVE SERVER RUNNING)`);
     console.log(`---------------------------------------------------------------`);
     console.log(`🌐 Dashboard URL : http://localhost:${PORT}`);
     console.log(`🌐 Local Network : http://127.0.0.1:${PORT}`);

@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * SISTEM PERINGATAN DINI KEBAKARAN IOT - DASHBOARD FRONTEND LOGIC (ALPINE.JS)
+ * SI PEKA - SISTEM PERINGATAN DINI KEBAKARAN IOT - DASHBOARD FRONTEND LOGIC (ALPINE.JS)
  * ============================================================================
  */
 
@@ -64,7 +64,7 @@ function fireDashboard() {
          * Inisialisasi awal saat Alpine.js terpasang di DOM
          */
         async init() {
-            console.log('[Dashboard] Memulai Dashboard IoT Fire Alarm...');
+            console.log('[Dashboard] Memulai Dashboard SI PEKA (IoT Fire Alarm)...');
 
             // Inisialisasi Chart.js
             this.initChart();

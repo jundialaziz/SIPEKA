@@ -127,7 +127,7 @@ class TelegramService
         $mac       = $macAddress ?: 'ESP32-NODE-01';
 
         if ($isRecovery) {
-            return "✅ *[SISTEM KEMBALI NORMAL]*\n\n"
+            return "✅ *[SI PEKA - SISTEM KEMBALI NORMAL]*\n\n"
                  . "Status: *AMAN (Kondisi Terkendali)*\n"
                  . "━━━━━━━━━━━━━━━━━━━━\n"
                  . "🌡️ *Suhu Ruangan:* " . number_format($temperature, 1) . " °C (Batas: {$tempTh} °C)\n"
@@ -142,7 +142,7 @@ class TelegramService
         }
 
         if ($level === 'BAHAYA') {
-            return "🚨 *[PERINGATAN DINI KEBAKARAN]* 🚨\n"
+            return "🚨 *[SI PEKA - PERINGATAN DINI KEBAKARAN]* 🚨\n"
                  . "Status: *⚠️ BAHAYA / API TERDETEKSI ⚠️*\n"
                  . "━━━━━━━━━━━━━━━━━━━━\n"
                  . "‼️ *PERHATIAN:* Suhu tinggi dan asap pekat terdeteksi secara bersamaan!\n\n"
@@ -158,7 +158,7 @@ class TelegramService
         }
 
         // WASPADA
-        return "⚠️ *[PERINGATAN AWAL SENSOR]* ⚠️\n"
+        return "⚠️ *[SI PEKA - PERINGATAN AWAL SENSOR]* ⚠️\n"
              . "Status: *WASPADA (ASAP / PANAS)*\n"
              . "━━━━━━━━━━━━━━━━━━━━\n"
              . "🌡️ *Suhu Ruangan:* " . number_format($temperature, 1) . " °C (Batas: {$tempTh} °C)\n"

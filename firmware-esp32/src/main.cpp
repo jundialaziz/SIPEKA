@@ -61,7 +61,7 @@ void setup() {
     delay(1000);
 
     Serial.println("\n=======================================================");
-    Serial.println("  SISTEM PERINGATAN DINI KEBAKARAN IOT - ESP32 BOOTING  ");
+    Serial.println("   SI PEKA - SISTEM PERINGATAN DINI KEBAKARAN IOT     ");
     Serial.println("=======================================================");
 
     // Inisialisasi Hardware I/O & Relay

@@ -1,4 +1,4 @@
-# Sistem Peringatan Dini Kebakaran Berbasis IoT (End-to-End)
+# SI PEKA - Sistem Peringatan Dini Kebakaran Berbasis IoT (End-to-End)
 
 Proyek sistem peringatan dini kebakaran berbasis IoT berstandar *production-ready* yang mengintegrasikan mikrokontroler **ESP32**, **Laravel 11 REST API & Rule Engine**, **Telegram Bot Alert System**, serta **Web Dashboard Statis Modern** yang siap di-deploy ke **GitHub Pages**.
 
