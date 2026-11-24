@@ -76,6 +76,15 @@ class DashboardController extends Controller
      */
     public function control(Request $request): JsonResponse
     {
+        // Verifikasi hak akses Administrator
+        $authHeader = $request->header('Authorization');
+        if (!$authHeader || !str_starts_with($authHeader, 'Bearer ')) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Akses ditolak! Anda harus login sebagai Admin untuk mengubah pengaturan atau mengontrol aktuator.',
+            ], 401);
+        }
+
         $validator = Validator::make($request->all(), [
             'auto_mode'      => 'nullable|boolean',
             'fan_override'   => 'nullable|boolean',

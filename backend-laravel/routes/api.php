@@ -1,14 +1,21 @@
 <?php
 
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\TelemetryController;
 use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| API Routes - IoT Fire Early Warning System
+| API Routes - SI PEKA (IoT Fire Early Warning System)
 |--------------------------------------------------------------------------
 */
+
+Route::prefix('auth')->group(function () {
+    // Autentikasi Admin
+    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/logout', [AuthController::class, 'logout']);
+});
 
 Route::prefix('iot')->group(function () {
     // Ingestion data telemetri dari ESP32

@@ -46,6 +46,18 @@ function fireDashboard() {
         isMuted: false,
         isAudioUnlocked: false,
 
+        // Status Autentikasi Admin
+        isAdmin: false,
+        adminUser: null,
+        showLoginModal: false,
+        showPassword: false,
+        loginForm: {
+            username: '',
+            password: '',
+            error: '',
+            isLoading: false
+        },
+
         // Status Tombol Loading
         isUpdatingControl: false,
         isSavingThreshold: false,
@@ -65,6 +77,9 @@ function fireDashboard() {
          */
         async init() {
             console.log('[Dashboard] Memulai Dashboard SI PEKA (IoT Fire Alarm)...');
+
+            // Cek status sesi login admin tersimpan
+            this.checkAuthStatus();
 
             // Inisialisasi Chart.js
             this.initChart();
@@ -450,15 +465,25 @@ function fireDashboard() {
          * Mengirim request update kontrol ke POST /api/dashboard/control
          */
         async sendControlUpdate(payload) {
-            const baseUrl = (window.CONFIG && window.CONFIG.API_BASE_URL) || 'http://127.0.0.1:8000/api';
+            // Verifikasi hak akses admin
+            if (!this.isAdmin) {
+                this.showToastNotification('Akses Terbatas: Silakan login sebagai Admin terlebih dahulu.', 'warning');
+                this.openLoginModal();
+                return false;
+            }
+
+            const baseUrl = (window.CONFIG && window.CONFIG.API_BASE_URL) || 'http://127.0.0.1:3000/api';
             this.isUpdatingControl = true;
+
+            const token = localStorage.getItem('sipeka_admin_token') || 'sipeka_admin_token_active';
 
             try {
                 const response = await fetch(`${baseUrl}/dashboard/control`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Accept': 'application/json'
+                        'Accept': 'application/json',
+                        'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify(payload)
                 });
@@ -476,6 +501,11 @@ function fireDashboard() {
                     this.isUpdatingControl = false;
                     return true;
                 } else {
+                    if (response.status === 401) {
+                        this.isAdmin = false;
+                        localStorage.removeItem('sipeka_admin_token');
+                        this.openLoginModal();
+                    }
                     throw new Error(json.message || 'Gagal menyimpan perubahan.');
                 }
             } catch (error) {
@@ -484,6 +514,104 @@ function fireDashboard() {
                 this.isUpdatingControl = false;
                 return false;
             }
+        },
+
+        // ==============================================================
+        // AUTENTIKASI ADMIN METHODS
+        // ==============================================================
+        checkAuthStatus() {
+            const token = localStorage.getItem('sipeka_admin_token');
+            const userStr = localStorage.getItem('sipeka_admin_user');
+            if (token) {
+                this.isAdmin = true;
+                try {
+                    this.adminUser = userStr ? JSON.parse(userStr) : { name: 'Administrator' };
+                } catch(e) {
+                    this.adminUser = { name: 'Administrator' };
+                }
+            } else {
+                this.isAdmin = false;
+                this.adminUser = null;
+            }
+        },
+
+        openLoginModal() {
+            this.loginForm.username = '';
+            this.loginForm.password = '';
+            this.loginForm.error = '';
+            this.loginForm.isLoading = false;
+            this.showLoginModal = true;
+        },
+
+        closeLoginModal() {
+            this.showLoginModal = false;
+        },
+
+        async loginAdmin() {
+            const username = this.loginForm.username.trim();
+            const password = this.loginForm.password.trim();
+
+            if (!username || !password) {
+                this.loginForm.error = 'Username dan password wajib diisi!';
+                return;
+            }
+
+            this.loginForm.isLoading = true;
+            this.loginForm.error = '';
+
+            const baseUrl = (window.CONFIG && window.CONFIG.API_BASE_URL) || 'http://127.0.0.1:3000/api';
+
+            try {
+                const response = await fetch(`${baseUrl}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.status === 'success') {
+                    localStorage.setItem('sipeka_admin_token', data.token);
+                    localStorage.setItem('sipeka_admin_user', JSON.stringify(data.user));
+                    this.isAdmin = true;
+                    this.adminUser = data.user;
+                    this.showLoginModal = false;
+                    this.showToastNotification(`Selamat datang, ${data.user.name}!`, 'success');
+                } else {
+                    this.loginForm.error = data.message || 'Username atau password salah!';
+                }
+            } catch (err) {
+                // Fallback offline / static hosting jika backend auth belum reachable
+                if (username === 'admin' && password === 'admin123') {
+                    const fallbackUser = { username: 'admin', name: 'Administrator SI PEKA', role: 'admin' };
+                    localStorage.setItem('sipeka_admin_token', 'sipeka_admin_token_active');
+                    localStorage.setItem('sipeka_admin_user', JSON.stringify(fallbackUser));
+                    this.isAdmin = true;
+                    this.adminUser = fallbackUser;
+                    this.showLoginModal = false;
+                    this.showToastNotification('Login Administrator berhasil!', 'success');
+                } else {
+                    this.loginForm.error = 'Username atau password salah! (Default: admin / admin123)';
+                }
+            } finally {
+                this.loginForm.isLoading = false;
+            }
+        },
+
+        async logoutAdmin() {
+            const baseUrl = (window.CONFIG && window.CONFIG.API_BASE_URL) || 'http://127.0.0.1:3000/api';
+            try {
+                await fetch(`${baseUrl}/auth/logout`, { method: 'POST' });
+            } catch(e) {}
+
+            localStorage.removeItem('sipeka_admin_token');
+            localStorage.removeItem('sipeka_admin_user');
+            this.isAdmin = false;
+            this.adminUser = null;
+            this.showToastNotification('Anda telah logout dari mode Administrator.', 'info');
         },
 
         /**

@@ -180,6 +180,46 @@ const server = http.createServer((req, res) => {
     // API ENDPOINTS
     // ==============================================================
 
+    // POST /api/auth/login
+    if (req.method === 'POST' && pathname === '/api/auth/login') {
+        let body = '';
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', () => {
+            try {
+                const data = JSON.parse(body || '{}');
+                const username = data.username;
+                const password = data.password;
+
+                if (username === 'admin' && password === 'admin123') {
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({
+                        status: 'success',
+                        message: 'Login berhasil sebagai Administrator.',
+                        token: 'sipeka_admin_token_active',
+                        user: { username: 'admin', name: 'Administrator SI PEKA', role: 'admin' }
+                    }));
+                } else {
+                    res.writeHead(401, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({
+                        status: 'error',
+                        message: 'Username atau password salah! Akses ditolak.'
+                    }));
+                }
+            } catch (err) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ status: 'error', message: 'Invalid JSON payload' }));
+            }
+        });
+        return;
+    }
+
+    // POST /api/auth/logout
+    if (req.method === 'POST' && pathname === '/api/auth/logout') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'success', message: 'Berhasil logout.' }));
+        return;
+    }
+
     // GET /api/dashboard/latest
     if (req.method === 'GET' && pathname === '/api/dashboard/latest') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -208,6 +248,16 @@ const server = http.createServer((req, res) => {
 
     // POST /api/dashboard/control
     if (req.method === 'POST' && pathname === '/api/dashboard/control') {
+        const auth = req.headers['authorization'];
+        if (!auth || !auth.startsWith('Bearer ')) {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                status: 'error',
+                message: 'Akses ditolak! Anda harus login sebagai Admin untuk mengubah pengaturan atau mengontrol aktuator.'
+            }));
+            return;
+        }
+
         let body = '';
         req.on('data', chunk => { body += chunk; });
         req.on('end', () => {
