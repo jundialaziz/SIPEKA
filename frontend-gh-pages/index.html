@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+    
+    <!-- Mobile Web App & PWA Capabilities -->
+    <meta name="theme-color" content="#0b0f19">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="FireAlarm IoT">
+    <meta name="format-detection" content="telephone=no">
+
+    <title>Sistem Peringatan Dini Kebakaran Berbasis IoT</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                screens: {
+                    'xs': '360px',
+                    'sm': '640px',
+                    'md': '768px',
+                    'lg': '1024px',
+                    'xl': '1280px',
+                    '2xl': '1536px'
+                },
+                extend: {
+                    colors: {
+                        dark: {
+                            950: '#070a11',
+                            900: '#0b0f19',
+                            850: '#0e1424',
+                            800: '#111827',
+                            750: '#151e32',
+                            700: '#1e293b',
+                            600: '#334155'
+                        },
+                        danger: '#ef4444',
+                        warning: '#f59e0b',
+                        safe: '#10b981',
+                        accent: '#38bdf8'
+                    },
+                    keyframes: {
+                        spinSlow: {
+                            '0%': { transform: 'rotate(0deg)' },
+                            '100%': { transform: 'rotate(360deg)' }
+                        },
+                        pulseFast: {
+                            '0%, 100%': { opacity: '1' },
+                            '50%': { opacity: '0.4' }
+                        },
+                        waterFlow: {
+                            '0%': { transform: 'translateY(-3px)' },
+                            '50%': { transform: 'translateY(3px)' },
+                            '100%': { transform: 'translateY(-3px)' }
+                        }
+                    },
+                    animation: {
+                        'spin-slow': 'spinSlow 1.2s linear infinite',
+                        'pulse-fast': 'pulseFast 0.8s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'water-flow': 'waterFlow 1s ease-in-out infinite'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Font Awesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Custom Config & Audio Siren Scripts -->
+    <script src="config.js"></script>
+    <script src="audio.js"></script>
+    <script src="app.js"></script>
+
+    <!-- Alpine.js CDN (defer) -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        [x-cloak] { display: none !important; }
+        
+        /* Dukungan Safe Area Insets untuk layar berponi / punch hole kamera hp modern */
+        .safe-top {
+            padding-top: env(safe-area-inset-top, 0px);
+        }
+        .safe-bottom {
+            padding-bottom: env(safe-area-inset-bottom, 12px);
+        }
+
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.82);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        /* Scrollbar halus untuk mobile & desktop */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0b0f19;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+    </style>
+</head>
+<body class="bg-dark-950 text-slate-100 min-h-screen antialiased flex flex-col selection:bg-orange-500 selection:text-white"
+      x-data="fireDashboard()" x-init="init()" x-cloak>
+
+    <!-- ============================================================== -->
+    <!-- EMERGENCY DANGER / WARNING FLASHING BANNER (RESPONSIF MOBILE)  -->
+    <!-- ============================================================== -->
+    <template x-if="reading.alert_level === 'BAHAYA'">
+        <div class="bg-red-600 text-white px-3 sm:px-4 py-2.5 sm:py-3 shadow-2xl sticky top-0 z-50 animate-pulse-fast border-b-2 border-red-400 safe-top">
+            <div class="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
+                <div class="flex items-center space-x-2.5 sm:space-x-3 min-w-0">
+                    <span class="p-1.5 sm:p-2 bg-white text-red-600 rounded-full text-base sm:text-lg font-black shrink-0 animate-bounce">
+                        <i class="fa-solid fa-fire"></i>
+                    </span>
+                    <div class="truncate">
+                        <h2 class="text-xs sm:text-base font-black tracking-wider uppercase truncate">
+                            PERINGATAN KRITIS: KEBAKARAN!
+                        </h2>
+                        <p class="text-[10px] sm:text-xs text-red-100 truncate">
+                            Suhu & asap pekat kritis. Pompa air & kipas otomatis ON!
+                        </p>
+                    </div>
+                </div>
+                <div class="shrink-0 flex items-center">
+                    <button @click="toggleMute()" 
+                            class="px-2.5 sm:px-3 py-1.5 bg-white text-red-700 active:scale-95 hover:bg-red-50 text-[11px] sm:text-xs font-bold rounded-lg shadow transition flex items-center gap-1.5">
+                        <i class="fa-solid" :class="isMuted ? 'fa-volume-xmark' : 'fa-volume-high'"></i>
+                        <span class="hidden xs:inline" x-text="isMuted ? 'Muted' : 'Bisukan'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template x-if="reading.alert_level === 'WASPADA'">
+        <div class="bg-amber-500 text-slate-950 px-3 sm:px-4 py-2 shadow-lg sticky top-0 z-50 border-b border-amber-300 safe-top">
+            <div class="max-w-7xl mx-auto flex items-center justify-between gap-2">
+                <div class="flex items-center space-x-2 text-xs sm:text-sm font-bold min-w-0">
+                    <i class="fa-solid fa-triangle-exclamation text-base shrink-0 animate-bounce"></i>
+                    <span class="truncate">STATUS WASPADA: Terdeteksi anomali asap / suhu. Kipas menyala.</span>
+                </div>
+                <span class="text-[10px] bg-amber-900/20 px-2 py-0.5 rounded-full font-mono font-bold shrink-0">WASPADA</span>
+            </div>
+        </div>
+    </template>
+
+    <!-- ============================================================== -->
+    <!-- HEADER BAR (MOBILE & DESKTOP ULTRA-RESPONSIVE)                 -->
+    <!-- ============================================================== -->
+    <header class="border-b border-slate-800/80 bg-dark-900/90 backdrop-blur sticky top-0 z-40 safe-top">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3.5 flex items-center justify-between gap-2 sm:gap-4">
+            
+            <!-- Logo & Title -->
+            <div class="flex items-center space-x-2.5 sm:space-x-3 min-w-0">
+                <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-orange-600 to-red-500 flex items-center justify-center shadow-lg shadow-orange-500/20 text-white text-base sm:text-xl shrink-0">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div class="min-w-0">
+                    <div class="flex items-center space-x-1.5 sm:space-x-2">
+                        <h1 class="text-sm sm:text-lg font-bold text-white tracking-tight truncate">IoT Fire Alarm</h1>
+                        <span class="text-[9px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full font-bold uppercase shrink-0"
+                              :class="{
+                                  'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30': reading.alert_level === 'AMAN',
+                                  'bg-amber-500/20 text-amber-400 border border-amber-500/30': reading.alert_level === 'WASPADA',
+                                  'bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse': reading.alert_level === 'BAHAYA'
+                              }"
+                              x-text="reading.alert_level">
+                        </span>
+                    </div>
+                    <p class="text-[10px] sm:text-xs text-slate-400 flex items-center gap-1.5 truncate">
+                        <span><i class="fa-solid fa-location-dot text-rose-500 text-[10px]"></i> Server Room</span>
+                        <span class="hidden xs:inline">•</span>
+                        <span class="font-mono text-[9px] sm:text-[11px] text-slate-400 hidden xs:inline" x-text="reading.mac_address"></span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Action Controls & Status Badges -->
+            <div class="flex items-center space-x-1.5 sm:space-x-3 shrink-0">
+                <!-- Status Koneksi ESP32 (Compact di HP) -->
+                <div class="flex items-center space-x-1.5 px-2 sm:px-3 py-1 rounded-lg bg-dark-800 border border-slate-700/60 text-[10px] sm:text-xs">
+                    <span class="relative flex h-2 w-2 sm:h-2.5 sm:w-2.5">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+                              :class="isServerConnected ? 'bg-emerald-400' : 'bg-red-400'"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 sm:h-2.5 sm:w-2.5"
+                              :class="isServerConnected ? 'bg-emerald-500' : 'bg-red-500'"></span>
+                    </span>
+                    <span class="text-slate-300 font-medium hidden sm:inline" x-text="isServerConnected ? (isDeviceOnline ? 'ESP32 Online' : 'ESP32 Siaga') : 'Offline'"></span>
+                    <span class="text-slate-300 font-medium sm:hidden" x-text="isServerConnected ? 'Live' : 'Off'"></span>
+                </div>
+
+                <!-- Tombol Audio Siren Toggle -->
+                <button @click="toggleMute()" 
+                        class="p-2 sm:px-3 sm:py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition active:scale-95"
+                        :class="isMuted ? 'border-slate-700 bg-dark-800 text-slate-400' : 'border-amber-500/50 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20'">
+                    <i class="fa-solid" :class="isMuted ? 'fa-bell-slash' : 'fa-bell'"></i>
+                    <span class="hidden md:inline" x-text="isMuted ? 'Muted' : 'Alarm Aktif'"></span>
+                </button>
+
+                <!-- Tombol Unlock Audio jika belum diaktifkan -->
+                <button x-show="!isAudioUnlocked" @click="unlockAudio()"
+                        class="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg bg-sky-500 hover:bg-sky-600 text-white text-[11px] sm:text-xs font-bold flex items-center gap-1.5 transition shadow active:scale-95">
+                    <i class="fa-solid fa-volume-high text-[10px]"></i>
+                    <span class="hidden xs:inline">Unlock Audio</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ============================================================== -->
+    <!-- MAIN CONTENT CONTAINER (MOBILE PADDING OPTIMIZED)              -->
+    <!-- ============================================================== -->
+    <main class="flex-grow max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 w-full space-y-4 sm:space-y-6">
+
+        <!-- ========================================================== -->
+        <!-- 4 REAL-TIME TELEMETRY CARDS (2 COLUMNS DI HP, 4 DI DESKTOP)-->
+        <!-- ========================================================== -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+            
+            <!-- CARD 1: SENSOR SUHU (LM35) -->
+            <div class="glass-panel rounded-xl sm:rounded-2xl p-3 sm:p-5 relative overflow-hidden transition hover:border-slate-600">
+                <div class="flex items-center justify-between mb-1.5 sm:mb-3">
+                    <span class="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Suhu Ruangan</span>
+                    <div class="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl flex items-center justify-center text-xs sm:text-sm font-bold shrink-0"
+                         :class="{
+                             'bg-emerald-500/10 text-emerald-400': reading.temperature < control.temp_threshold,
+                             'bg-red-500/20 text-red-400 animate-pulse': reading.temperature >= control.temp_threshold
+                         }">
+                        <i class="fa-solid fa-temperature-half text-sm sm:text-base"></i>
+                    </div>
+                </div>
+                <div class="flex items-baseline space-x-1 sm:space-x-2">
+                    <span class="text-2xl sm:text-4xl font-black tracking-tight text-white" 
+                          x-text="reading.temperature.toFixed(1)">0.0</span>
+                    <span class="text-xs sm:text-lg font-medium text-slate-400">°C</span>
+                </div>
+                <div class="mt-2 sm:mt-4 flex items-center justify-between text-[10px] sm:text-xs">
+                    <span class="text-slate-400">Batas:</span>
+                    <span class="font-bold text-orange-400 font-mono text-[10px] sm:text-xs" x-text="control.temp_threshold.toFixed(1) + '°C'">45.0°C</span>
+                </div>
+                <!-- Progress Indicator -->
+                <div class="mt-1.5 sm:mt-2 w-full bg-slate-800 rounded-full h-1 sm:h-1.5 overflow-hidden">
+                    <div class="h-1 sm:h-1.5 rounded-full transition-all duration-500"
+                         :class="reading.temperature >= control.temp_threshold ? 'bg-red-500' : 'bg-orange-500'"
+                         :style="'width: ' + Math.min(100, Math.max(5, (reading.temperature / 80) * 100)) + '%'">
+                    </div>
+                </div>
+            </div>
+
+            <!-- CARD 2: SENSOR GAS & ASAP (MQ-2) -->
+            <div class="glass-panel rounded-xl sm:rounded-2xl p-3 sm:p-5 relative overflow-hidden transition hover:border-slate-600">
+                <div class="flex items-center justify-between mb-1.5 sm:mb-3">
+                    <span class="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Kadar Asap</span>
+                    <div class="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl flex items-center justify-center text-xs sm:text-sm font-bold shrink-0"
+                         :class="{
+                             'bg-sky-500/10 text-sky-400': reading.gas_level < control.gas_threshold,
+                             'bg-red-500/20 text-red-400 animate-pulse': reading.gas_level >= control.gas_threshold
+                         }">
+                        <i class="fa-solid fa-smog text-sm sm:text-base"></i>
+                    </div>
+                </div>
+                <div class="flex items-baseline space-x-1 sm:space-x-2">
+                    <span class="text-2xl sm:text-4xl font-black tracking-tight text-white" 
+                          x-text="Math.round(reading.gas_level)">0</span>
+                    <span class="text-xs sm:text-lg font-medium text-slate-400">PPM</span>
+                </div>
+                <div class="mt-2 sm:mt-4 flex items-center justify-between text-[10px] sm:text-xs">
+                    <span class="text-slate-400">Batas:</span>
+                    <span class="font-bold text-sky-400 font-mono text-[10px] sm:text-xs" x-text="control.gas_threshold.toFixed(0) + ' PPM'">400 PPM</span>
+                </div>
+                <!-- Progress Indicator -->
+                <div class="mt-1.5 sm:mt-2 w-full bg-slate-800 rounded-full h-1 sm:h-1.5 overflow-hidden">
+                    <div class="h-1 sm:h-1.5 rounded-full transition-all duration-500"
+                         :class="reading.gas_level >= control.gas_threshold ? 'bg-red-500' : 'bg-sky-500'"
+                         :style="'width: ' + Math.min(100, Math.max(5, (reading.gas_level / 1000) * 100)) + '%'">
+                    </div>
+                </div>
+            </div>
+
+            <!-- CARD 3: KIPAS EXHAUST (RELAY CH1) -->
+            <div class="glass-panel rounded-xl sm:rounded-2xl p-3 sm:p-5 relative overflow-hidden transition hover:border-slate-600"
+                 :class="reading.fan_status ? 'border-emerald-500/40 bg-emerald-950/10' : ''">
+                <div class="flex items-center justify-between mb-1.5 sm:mb-3">
+                    <span class="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Kipas Exhaust</span>
+                    <div class="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl flex items-center justify-center text-xs sm:text-sm font-bold shrink-0"
+                         :class="reading.fan_status ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-500'">
+                        <i class="fa-solid fa-fan text-sm sm:text-base" :class="reading.fan_status ? 'animate-spin-slow text-emerald-400' : ''"></i>
+                    </div>
+                </div>
+                <div class="flex items-baseline space-x-1 sm:space-x-2">
+                    <span class="text-lg sm:text-3xl font-black tracking-tight"
+                          :class="reading.fan_status ? 'text-emerald-400' : 'text-slate-500'"
+                          x-text="reading.fan_status ? 'ON' : 'OFF'">OFF</span>
+                </div>
+                <div class="mt-2 sm:mt-4 flex items-center justify-between text-[10px] sm:text-xs text-slate-400">
+                    <span>Pin:</span>
+                    <span class="font-mono text-slate-300">GPIO 26</span>
+                </div>
+                <div class="mt-1 sm:mt-2 text-[9px] sm:text-[11px] text-slate-400 truncate">
+                    <span>Pembuang Asap</span>
+                </div>
+            </div>
+
+            <!-- CARD 4: POMPA AIR MINI (RELAY CH2) -->
+            <div class="glass-panel rounded-xl sm:rounded-2xl p-3 sm:p-5 relative overflow-hidden transition hover:border-slate-600"
+                 :class="reading.pump_status ? 'border-red-500/60 bg-red-950/20' : ''">
+                <div class="flex items-center justify-between mb-1.5 sm:mb-3">
+                    <span class="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Pompa Air</span>
+                    <div class="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl flex items-center justify-center text-xs sm:text-sm font-bold shrink-0"
+                         :class="reading.pump_status ? 'bg-blue-500/20 text-blue-400' : 'bg-slate-800 text-slate-500'">
+                        <i class="fa-solid fa-faucet-drip text-sm sm:text-base" :class="reading.pump_status ? 'animate-water-flow text-blue-400' : ''"></i>
+                    </div>
+                </div>
+                <div class="flex items-baseline space-x-1 sm:space-x-2">
+                    <span class="text-lg sm:text-3xl font-black tracking-tight truncate"
+                          :class="reading.pump_status ? 'text-blue-400 animate-pulse' : 'text-slate-500'"
+                          x-text="reading.pump_status ? 'ON (SIRAM)' : 'OFF'">OFF</span>
+                </div>
+                <div class="mt-2 sm:mt-4 flex items-center justify-between text-[10px] sm:text-xs text-slate-400">
+                    <span>Pin:</span>
+                    <span class="font-mono text-slate-300">GPIO 27</span>
+                </div>
+                <div class="mt-1 sm:mt-2 text-[9px] sm:text-[11px] text-slate-400 truncate">
+                    <span>Pemadaman Api</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ========================================================== -->
+        <!-- CHART & CONTROL PANEL SECTION (RESPONSIF MOBILE VERTICAL)  -->
+        <!-- ========================================================== -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+            
+            <!-- GRAFIK LIVE CHART.JS (COL 2/3) -->
+            <div class="lg:col-span-2 glass-panel rounded-xl sm:rounded-2xl p-3.5 sm:p-5 flex flex-col justify-between">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-2 sm:mb-4">
+                    <div>
+                        <h2 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-chart-line text-orange-400"></i>
+                            <span>Grafik Real-Time</span>
+                        </h2>
+                        <p class="text-[10px] sm:text-xs text-slate-400">Tren dinamika suhu & asap 30 titik data terakhir</p>
+                    </div>
+                    <div class="flex items-center space-x-2.5 text-[10px] sm:text-xs text-slate-400">
+                        <span class="flex items-center gap-1">
+                            <span class="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block"></span> Suhu (°C)
+                        </span>
+                        <span class="flex items-center gap-1">
+                            <span class="w-2.5 h-2.5 rounded-full bg-sky-400 inline-block"></span> Gas (PPM)
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Canvas Chart dengan Rasio Tinggi Mobile yang Pas -->
+                <div class="relative w-full h-52 sm:h-72 lg:h-80">
+                    <canvas id="liveSensorChart"></canvas>
+                </div>
+
+                <div class="mt-2.5 pt-2 sm:mt-3 sm:pt-3 border-t border-slate-800 text-[10px] sm:text-[11px] text-slate-500 flex items-center justify-between">
+                    <span>Interval: 2 detik</span>
+                    <span x-text="'Pukul: ' + lastUpdatedTime"></span>
+                </div>
+            </div>
+
+            <!-- CONTROL PANEL & THRESHOLDS (COL 1/3) -->
+            <div class="glass-panel rounded-xl sm:rounded-2xl p-3.5 sm:p-5 space-y-4 sm:space-y-6">
+                
+                <!-- HEADER CONTROL -->
+                <div class="border-b border-slate-800 pb-2.5 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-sliders text-sky-400"></i>
+                            <span>Panel Kendali</span>
+                        </h2>
+                        <p class="text-[10px] sm:text-xs text-slate-400">Mode Sistem & Ambang Batas Sensor</p>
+                    </div>
+                    <div class="w-2.5 h-2.5 rounded-full"
+                         :class="control.auto_mode ? 'bg-emerald-500' : 'bg-amber-500'"></div>
+                </div>
+
+                <!-- 1. TOGGLE AUTO MODE VS MANUAL OVERRIDE (FINGER FRIENDLY TOUCH TARGETS) -->
+                <div class="space-y-1.5 sm:space-y-2">
+                    <label class="text-[10px] sm:text-xs font-bold text-slate-300 uppercase tracking-wider block">Mode Operasi</label>
+                    <div class="grid grid-cols-2 gap-1.5 sm:gap-2 p-1 bg-dark-900 rounded-xl border border-slate-700/60">
+                        <button @click="setAutoMode(true)" 
+                                :disabled="isUpdatingControl"
+                                class="py-2.5 sm:py-2 text-xs font-bold rounded-lg transition active:scale-95 flex items-center justify-center gap-1.5"
+                                :class="control.auto_mode ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-white'">
+                            <i class="fa-solid fa-robot text-xs"></i>
+                            <span>OTOMATIS</span>
+                        </button>
+                        <button @click="setAutoMode(false)"
+                                :disabled="isUpdatingControl"
+                                class="py-2.5 sm:py-2 text-xs font-bold rounded-lg transition active:scale-95 flex items-center justify-center gap-1.5"
+                                :class="!control.auto_mode ? 'bg-amber-600 text-white shadow-md' : 'text-slate-400 hover:text-white'">
+                            <i class="fa-solid fa-hand text-xs"></i>
+                            <span>MANUAL</span>
+                        </button>
+                    </div>
+                    <p class="text-[10px] text-slate-400" x-text="control.auto_mode ? 'Sistem dipandu Rule Engine.' : 'Manual Override aktif. Kontrol aktuator mandiri di bawah:'"></p>
+                </div>
+
+                <!-- 2. MANUAL ACTUATOR BUTTONS (RESPONSIF TOUCH) -->
+                <div class="space-y-2 pt-2 border-t border-slate-800/80">
+                    <label class="text-[10px] sm:text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center justify-between">
+                        <span>Kontrol Manual Relays</span>
+                        <span x-show="control.auto_mode" class="text-[9px] text-amber-400 font-normal">Terkunci (Auto)</span>
+                    </label>
+
+                    <div class="grid grid-cols-2 gap-2 sm:gap-3">
+                        <!-- Toggle Kipas Manual -->
+                        <button @click="toggleFanOverride()"
+                                :disabled="control.auto_mode || isUpdatingControl"
+                                class="p-2.5 sm:p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition text-center active:scale-95"
+                                :class="{
+                                    'opacity-40 cursor-not-allowed border-slate-800 bg-dark-900': control.auto_mode,
+                                    'border-emerald-500 bg-emerald-500/15 text-emerald-400 shadow-lg shadow-emerald-500/10': !control.auto_mode && control.fan_override,
+                                    'border-slate-700 bg-dark-800 text-slate-300 hover:bg-slate-700': !control.auto_mode && !control.fan_override
+                                }">
+                            <i class="fa-solid fa-fan text-base sm:text-lg" :class="control.fan_override ? 'animate-spin-slow' : ''"></i>
+                            <span class="text-[11px] sm:text-xs font-bold">Kipas Exhaust</span>
+                            <span class="text-[9px] font-mono px-2 py-0.5 rounded font-black uppercase"
+                                  :class="control.fan_override ? 'bg-emerald-500 text-slate-950' : 'bg-slate-700 text-slate-300'"
+                                  x-text="control.fan_override ? 'NYALA' : 'MATI'"></span>
+                        </button>
+
+                        <!-- Toggle Pompa Manual -->
+                        <button @click="togglePumpOverride()"
+                                :disabled="control.auto_mode || isUpdatingControl"
+                                class="p-2.5 sm:p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition text-center active:scale-95"
+                                :class="{
+                                    'opacity-40 cursor-not-allowed border-slate-800 bg-dark-900': control.auto_mode,
+                                    'border-blue-500 bg-blue-500/15 text-blue-400 shadow-lg shadow-blue-500/10': !control.auto_mode && control.pump_override,
+                                    'border-slate-700 bg-dark-800 text-slate-300 hover:bg-slate-700': !control.auto_mode && !control.pump_override
+                                }">
+                            <i class="fa-solid fa-faucet-drip text-base sm:text-lg"></i>
+                            <span class="text-[11px] sm:text-xs font-bold">Pompa Air</span>
+                            <span class="text-[9px] font-mono px-2 py-0.5 rounded font-black uppercase"
+                                  :class="control.pump_override ? 'bg-blue-500 text-slate-950' : 'bg-slate-700 text-slate-300'"
+                                  x-text="control.pump_override ? 'NYALA' : 'MATI'"></span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3. FORM AMBANG BATAS (MOBILE KEYBOARD OPTIMIZED) -->
+                <form @submit.prevent="saveThresholds()" class="space-y-2.5 pt-2 border-t border-slate-800/80">
+                    <label class="text-[10px] sm:text-xs font-bold text-slate-300 uppercase tracking-wider block">Atur Ambang Batas Kritis</label>
+                    
+                    <div class="grid grid-cols-2 gap-2 sm:gap-3">
+                        <div>
+                            <label class="text-[10px] text-slate-400 mb-1 block">Suhu Kritis (°C)</label>
+                            <input type="number" step="0.5" min="20" max="120" inputmode="decimal"
+                                   x-model="thresholdForm.temp_threshold"
+                                   class="w-full bg-dark-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-orange-500">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-slate-400 mb-1 block">Gas Kritis (PPM)</label>
+                            <input type="number" step="10" min="50" max="4000" inputmode="numeric"
+                                   x-model="thresholdForm.gas_threshold"
+                                   class="w-full bg-dark-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-sky-500">
+                        </div>
+                    </div>
+
+                    <button type="submit" 
+                            :disabled="isSavingThreshold"
+                            class="w-full py-2.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 active:scale-95 text-white rounded-lg text-xs font-bold shadow-md transition flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-floppy-disk text-xs"></i>
+                        <span x-text="isSavingThreshold ? 'Menyimpan...' : 'Simpan Ambang Batas'"></span>
+                    </button>
+                </form>
+
+            </div>
+
+        </div>
+
+        <!-- ========================================================== -->
+        <!-- RECENT ALERT LOGS & TELEGRAM ACTIVITY (CARD VIEW DI MOBILE)-->
+        <!-- ========================================================== -->
+        <div class="glass-panel rounded-xl sm:rounded-2xl p-3.5 sm:p-5 space-y-3 sm:space-y-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                        <i class="fa-brands fa-telegram text-sky-400 text-base sm:text-lg"></i>
+                        <span>Log Insiden & Telegram</span>
+                    </h2>
+                    <p class="text-[10px] sm:text-xs text-slate-400">Peringatan bahaya & notifikasi terkirim</p>
+                </div>
+                <span class="text-[10px] sm:text-xs font-mono text-slate-400" x-text="recentAlerts.length + ' Data'"></span>
+            </div>
+
+            <!-- TAMPILAN MOBILE: KARTU LIST TIMELINE (md:hidden) -->
+            <div class="md:hidden space-y-2">
+                <template x-for="alert in recentAlerts" :key="alert.id">
+                    <div class="bg-dark-900/90 border border-slate-800 rounded-xl p-2.5 space-y-1.5 transition">
+                        <div class="flex items-center justify-between text-[11px]">
+                            <span class="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider"
+                                  :class="{
+                                      'bg-emerald-500/20 text-emerald-400': alert.alert_level === 'AMAN',
+                                      'bg-amber-500/20 text-amber-400': alert.alert_level === 'WASPADA',
+                                      'bg-red-500/20 text-red-400 font-extrabold': alert.alert_level === 'BAHAYA'
+                                  }"
+                                  x-text="alert.alert_level">
+                            </span>
+                            <span class="text-slate-400 font-mono text-[10px]" 
+                                  x-text="new Date(alert.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })"></span>
+                        </div>
+                        <p class="text-xs text-slate-200 font-medium" x-text="alert.message"></p>
+                        <div class="flex items-center justify-between pt-1 border-t border-slate-800/80 text-[10px] text-slate-400 font-mono">
+                            <div>
+                                <span x-text="alert.temperature ? alert.temperature.toFixed(1) + '°C' : '-'"></span>
+                                <span class="mx-1">•</span>
+                                <span x-text="alert.gas_level ? Math.round(alert.gas_level) + ' PPM' : '-'"></span>
+                            </div>
+                            <span class="inline-flex items-center gap-1 text-[10px]"
+                                  :class="alert.sent_to_telegram ? 'text-sky-400' : 'text-slate-500'">
+                                <i class="fa-solid" :class="alert.sent_to_telegram ? 'fa-paper-plane' : 'fa-clock'"></i>
+                                <span x-text="alert.sent_to_telegram ? 'Terkirim' : 'Cooldown'"></span>
+                            </span>
+                        </div>
+                    </div>
+                </template>
+                <div x-show="recentAlerts.length === 0" class="text-center py-4 text-slate-500 text-xs">
+                    Belum ada insiden tercatat. Sistem aman.
+                </div>
+            </div>
+
+            <!-- TAMPILAN TABLE LENGKAP (DESKTOP & TABLET: hidden md:block) -->
+            <div class="hidden md:block overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-300">
+                    <thead class="bg-dark-800/80 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-700/80">
+                        <tr>
+                            <th class="py-2.5 px-3">Waktu Kejadian</th>
+                            <th class="py-2.5 px-3">Level Status</th>
+                            <th class="py-2.5 px-3">Suhu (°C)</th>
+                            <th class="py-2.5 px-3">Gas (PPM)</th>
+                            <th class="py-2.5 px-3">Pesan / Insiden</th>
+                            <th class="py-2.5 px-3 text-center">Status Telegram</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800 font-normal">
+                        <template x-for="alert in recentAlerts" :key="alert.id">
+                            <tr class="hover:bg-slate-800/40 transition">
+                                <td class="py-2.5 px-3 font-mono text-slate-400 whitespace-nowrap" 
+                                    x-text="new Date(alert.created_at).toLocaleString('id-ID')"></td>
+                                <td class="py-2.5 px-3 whitespace-nowrap">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase"
+                                          :class="{
+                                              'bg-emerald-500/20 text-emerald-400': alert.alert_level === 'AMAN',
+                                              'bg-amber-500/20 text-amber-400': alert.alert_level === 'WASPADA',
+                                              'bg-red-500/20 text-red-400 font-extrabold': alert.alert_level === 'BAHAYA'
+                                          }"
+                                          x-text="alert.alert_level">
+                                    </span>
+                                </td>
+                                <td class="py-2.5 px-3 font-mono" x-text="alert.temperature ? alert.temperature.toFixed(1) + '°C' : '-'"></td>
+                                <td class="py-2.5 px-3 font-mono" x-text="alert.gas_level ? Math.round(alert.gas_level) + ' PPM' : '-'"></td>
+                                <td class="py-2.5 px-3 text-slate-300 max-w-xs truncate" x-text="alert.message"></td>
+                                <td class="py-2.5 px-3 text-center whitespace-nowrap">
+                                    <template x-if="alert.sent_to_telegram">
+                                        <span class="inline-flex items-center gap-1 text-[11px] text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-full border border-sky-500/20">
+                                            <i class="fa-solid fa-paper-plane text-[9px]"></i> Terkirim
+                                        </span>
+                                    </template>
+                                    <template x-if="!alert.sent_to_telegram">
+                                        <span class="inline-flex items-center gap-1 text-[11px] text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">
+                                            <i class="fa-solid fa-clock text-[9px]"></i> Cooldown
+                                        </span>
+                                    </template>
+                                </td>
+                            </tr>
+                        </template>
+                        <tr x-show="recentAlerts.length === 0">
+                            <td colspan="6" class="text-center py-6 text-slate-500 text-xs">
+                                <i class="fa-solid fa-shield-cat text-lg mb-1 block"></i>
+                                Belum ada riwayat insiden peringatan bahaya tercatat. Sistem dalam kondisi aman.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ============================================================== -->
+    <!-- TOAST NOTIFICATION POPUP (MOBILE SAFE POSITION)                -->
+    <!-- ============================================================== -->
+    <div x-show="toast.show" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 translate-y-3"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 translate-y-0"
+         x-transition:leave-end="opacity-0 translate-y-3"
+         class="fixed bottom-4 sm:bottom-5 right-3 sm:right-5 left-3 sm:left-auto z-50 flex items-center justify-between sm:justify-start gap-2.5 px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-xl shadow-2xl text-xs font-semibold border backdrop-blur safe-bottom"
+         :class="{
+             'bg-emerald-950/95 text-emerald-300 border-emerald-500/40': toast.type === 'success',
+             'bg-amber-950/95 text-amber-300 border-amber-500/40': toast.type === 'warning',
+             'bg-red-950/95 text-red-300 border-red-500/40': toast.type === 'error',
+             'bg-slate-900/95 text-slate-200 border-slate-700': toast.type === 'info'
+         }">
+        <div class="flex items-center gap-2 truncate">
+            <i class="fa-solid shrink-0" 
+               :class="{
+                   'fa-circle-check text-emerald-400': toast.type === 'success',
+                   'fa-triangle-exclamation text-amber-400': toast.type === 'warning',
+                   'fa-circle-xmark text-red-400': toast.type === 'error',
+                   'fa-circle-info text-sky-400': toast.type === 'info'
+               }"></i>
+            <span class="truncate" x-text="toast.message"></span>
+        </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- FOOTER                                                         -->
+    <!-- ============================================================== -->
+    <footer class="border-t border-slate-800 bg-dark-900/60 py-3 sm:py-4 mt-6 safe-bottom">
+        <div class="max-w-7xl mx-auto px-4 text-center text-[10px] sm:text-xs text-slate-500 space-y-1">
+            <p>IoT Fire Early Warning System &copy; 2026. ESP32 • Laravel 11 • GitHub Pages</p>
+            <p class="text-[9px] sm:text-[11px] text-slate-600">Mobile Responsive Tested on iPhone, Samsung Galaxy, Xiaomi, Oppo, Vivo, & Pixel.</p>
+        </div>
+    </footer>
+
+</body>
+</html>

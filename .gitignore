@@ -1,0 +1,30 @@
+# Laravel
+backend-laravel/.env
+backend-laravel/vendor/
+backend-laravel/storage/*.key
+backend-laravel/storage/logs/
+backend-laravel/storage/framework/cache/
+backend-laravel/storage/framework/sessions/
+backend-laravel/storage/framework/views/
+backend-laravel/database/*.sqlite
+backend-laravel/database/*.sqlite-journal
+
+# PlatformIO / C++
+firmware-esp32/.pio/
+firmware-esp32/.vscode/
+*.hex
+*.bin
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE & OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
